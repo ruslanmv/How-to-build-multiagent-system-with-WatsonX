@@ -1,36 +1,43 @@
-from crewai import Crew, Task, Agent
+#from crewai import Crew, Task, Agent
 from langchain_ibm import WatsonxLLM
+from langchain_community.tools.tavily_search import TavilySearchResults
 import os
-from langchain.tools import tool
 from dotenv import load_dotenv
+from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
+from ibm_watsonx_ai.foundation_models.utils.enums import DecodingMethods
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Set up WatsonxLLM with API details
-os.environ["WATSONX_APIKEY"] = "your-api-key"
+# Load API key and project ID from environment variables
+watsonx_api_key = os.getenv("WATSONX_API_KEY")
+project_id = os.getenv("PROJECT_ID")
+url = os.getenv("WATSONX_URL")
 
-# Define the LLM models
+# WatsonxLLM parameters
+parameters = {
+    GenParams.DECODING_METHOD: DecodingMethods.SAMPLE.value,
+    GenParams.MAX_NEW_TOKENS: 100,
+    GenParams.MIN_NEW_TOKENS: 50,
+    GenParams.TEMPERATURE: 0.7,
+    GenParams.TOP_K: 50,
+    GenParams.TOP_P: 1
+}
+
+if not watsonx_api_key or not project_id:
+    raise ValueError("Please set the WATSONX_API_KEY and PROJECT_ID in your .env file.")
+
+# Define LLM models using WatsonxLLM
 llm = WatsonxLLM(
-    model_id="meta-llama/llama-3-70b-instruct",
-    url="https://us-south.ml.cloud.ibm.com",
-    params={
-        "decoding_method": "sample",
-        "max_new_tokens": 100,
-        "temperature": 0.7,
-        "top_k": 50,
-        "top_p": 1,
-    },
-    project_id="your-project-id",
+    model_id="meta-llama/llama-3-1-70b-instruct",  
+    url=url,
+    apikey=watsonx_api_key,
+    project_id=project_id,
+    params=parameters
 )
 
-# Function to perform an internet search
-@tool("Search in Internet")
-def search_internet(topic: str) -> str:
-    """Search service provides live searches on the internet for a specific topic."""
-    # Here we simulate the output as we would get from an API
-    result = f"Search results for '{topic}': [IBM Quantum Computing Research](https://www.ibm.com/topics/quantum-computing)"
-    return result
+# Tool Initialization for the Researcher
+tavily_tool = TavilySearchResults(max_results=5)  
 
 # Router Agent definition
 def router_decision(user_query):
@@ -54,7 +61,7 @@ researcher = Agent(
     role="Researcher",
     goal="Fetch the latest information available on the internet based on the user query.",
     backstory="You are an AI researcher skilled in retrieving the latest information.",
-    tools=[search_internet]
+    tools=[tavily_tool]  
 )
 
 # Creator Agent
@@ -89,11 +96,11 @@ crew = Crew(
     agents=[router, researcher, creator],
     tasks=[task_router, task_researcher, task_creator],
     verbose=True,
-    output_log_file=True,
+    output_log_file="crew_log.txt", 
     share_crew=False
 )
 
-# Execute the workflow
+# Execute the workflow 
 def crew_workflow(user_query):
     print("\n==== Starting Crew Workflow ====\n")
     
@@ -105,13 +112,13 @@ def crew_workflow(user_query):
     # Step 2: Based on the selected agent, either Researcher or Creator is invoked
     if selected_agent == "Researcher":
         print(f"[Researcher] Processing query: '{user_query}'")
-        search_result = search_internet(user_query)
+        search_result = tavily_tool.invoke(user_query)  
         print(f"[Researcher] Result: {search_result}\n")
     elif selected_agent == "Creator":
         creator_prompt = f"Please provide an informative response for: '{user_query}'"
-        result = llm.predict(creator_prompt)
+        result = llm.invoke(creator_prompt) 
         print(f"[Creator] Result: {result}\n")
 
 # Example usage
-crew_workflow("Fetch the bitcoin price over the past 5 days.")  # Should trigger the Researcher agent
-crew_workflow("Explain what Bitcoin is.")  # Should trigger the Creator agent
+crew_workflow("Fetch the bitcoin price over the past 5 days.") 
+crew_workflow("Explain what Bitcoin is.")
