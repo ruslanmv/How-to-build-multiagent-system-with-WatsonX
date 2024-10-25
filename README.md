@@ -415,6 +415,5 @@ This alternative post provides a comprehensive breakdown of how crewAI leverages
 
 ### Conclusion
 
-Langraph provides a powerful way to orchestrate multi-agent systems, offering flexibility and modularity. By defining workflows, nodes, and transitions, you can build complex, intelligent systems efficiently. The code example provided in this post serves as a starting point. You can expand upon it by adding more agents or integrating additional tools.
+Langraph provides a powerful way to orchestrate multi-agent systems, offering flexibility and modularity. By defining workflows, nodes, and transitions, you can build complex, intelligent systems efficiently. 
 
-Try building your own agents using the example above, and expand upon this foundation by adding more agents or integrating additional tools. Remember to explore other frameworks as well to find the one that best suits your needs!
